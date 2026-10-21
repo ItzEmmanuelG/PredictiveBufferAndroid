@@ -7,7 +7,7 @@
 	"version": "v1.1.0",
 	"id": "ai.predictivebuffer",
 	"name": "Predictive Input Buffer",
-	"developer": "lilWC",
+	"developer": "savxy",
 	"description": "Trajectory-based 1-2 frame press and wave release input buffer. Touch UI for Android.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.1.0"
