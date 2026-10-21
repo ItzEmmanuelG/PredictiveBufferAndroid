@@ -19,6 +19,8 @@ jobs:
         with:
           target: ${{ matrix.target }}
           combine: true
+          android-min-sdk: 23
+          sdk: latest
 
   package:
     needs: build
