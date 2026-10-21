@@ -3,31 +3,21 @@ name: Build Geode Mod
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
 
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
-        config:
-          - name: Android32
+        include:
+          - target: Android64
             os: ubuntu-latest
-            target: Android32
-          - name: Android64
+          - target: Android32
             os: ubuntu-latest
-            target: Android64
-          - name: Windows
+          - target: Windows
             os: windows-latest
-            target: Windows
-
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
-
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: geode-sdk/build-geode-mod@main
         with:
-          target: ${{ matrix.config.target }}:
+          target: ${{ matrix.target }}
