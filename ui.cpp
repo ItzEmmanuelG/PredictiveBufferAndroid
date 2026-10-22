@@ -1,11 +1,4 @@
 // Interfaz tactil (estilo QOLMod / Eclipse) para el Predictive Input Buffer.
-//
-//  * Boton flotante "IB" dentro del nivel: un toque cambia la etapa
-//    (sustituye a la tecla F6 de PC) y se puede arrastrar a cualquier sitio.
-//  * Boton "IB" en el menu de pausa y en el menu principal: abre el menu completo.
-//
-// Solo usa cocos2d + clases basicas de GD (CCLayer, CCMenu, ButtonSprite...),
-// sin depender de las clases Popup de Geode, para que compile igual en todas las versiones.
 
 #include <Geode/Geode.hpp>
 #include <Geode/modify/MenuLayer.hpp>
@@ -77,7 +70,6 @@ namespace {
             return p;
         }
 
-        // actualiza texto / visibilidad / opacidad
         void refresh() {
             const int a = ib::cfgOpacity() * 255 / 100;
             this->setVisible(ib::cfgShowButton());
@@ -87,7 +79,6 @@ namespace {
             m_label->setString(text.c_str());
         }
 
-        // parpadeo verde cuando el buffer retrasa un input
         void flash() {
             m_flash = 0.2f;
             m_bg->setColor({30, 150, 60});
@@ -100,7 +91,6 @@ namespace {
             }
         }
 
-        // ----- tactil: arrastrar = mover, tocar = cambiar etapa -----
         void registerWithTouchDispatcher() override {
             CCDirector::sharedDirector()->getTouchDispatcher()->addTargetedDelegate(this, -128, true);
         }
@@ -112,7 +102,6 @@ namespace {
             m_dragging = false;
             m_start = touch->getLocation();
             const CCPoint pos = this->getPosition();
-            // CORREGIDO AQUI: de m_offset = {..} a CCPoint(..)
             m_offset = CCPoint(pos.x - m_start.x, pos.y - m_start.y);
             return true;
         }
@@ -121,9 +110,8 @@ namespace {
             const CCPoint loc = touch->getLocation();
             const float dx = loc.x - m_start.x;
             const float dy = loc.y - m_start.y;
-            if (!m_dragging && (dx * dx + dy * dy) > 100.f) m_dragging = true;   // > 10 px
+            if (!m_dragging && (dx * dx + dy * dy) > 100.f) m_dragging = true;
             if (m_dragging) {
-                // CORREGIDO AQUI: de {..} a CCPoint(..)
                 this->setPosition(clampPos(CCPoint(loc.x + m_offset.x, loc.y + m_offset.y)));
             }
         }
@@ -189,10 +177,6 @@ namespace {
             addLabel("Predictive Input Buffer", "goldFont.fnt", 0.62f, {kW / 2.f, kH - 22.f});
             addLabel("Stage  (ticks: All / Wave)", "chatFont.fnt", 0.85f, {kW / 2.f, kH - 48.f});
 
-            // resaltado de la etapa activa (va detras de los botones)
-            m_sel = CCLayerColor::create(ccc4(80, 230, 110, 255), 60.f, 36.f);
-            m_panel->addChild(m_sel);
-
             m_menu = CCMenu::create();
             m_menu->setPosition({0.f, 0.f});
             m_menu->setTouchPriority(-701);
@@ -206,6 +190,7 @@ namespace {
                 btn->setTag(i);
                 btn->setPosition({stageX(i), kStageY});
                 m_menu->addChild(btn);
+                m_stageBtns[i] = btn; // Guardamos el boton
             }
 
             m_desc = addLabel("", "chatFont.fnt", 0.8f, {kW / 2.f, kStageY - 30.f});
@@ -243,13 +228,25 @@ namespace {
 
         void refresh() {
             const int s = ib::S().stage;
-            m_sel->setPosition({stageX(s) - 30.f, kStageY - 18.f});
+
+            // Pintar de verde el boton seleccionado y hacerlo un poquito mas grande
+            for (int i = 0; i < ib::kStageCount; ++i) {
+                if (m_stageBtns[i]) {
+                    if (i == s) {
+                        m_stageBtns[i]->setColor(ccc3(100, 255, 100)); // Color verde
+                        m_stageBtns[i]->setScale(1.1f);                // Efecto "pop"
+                    } else {
+                        m_stageBtns[i]->setColor(ccc3(255, 255, 255)); // Color blanco normal
+                        m_stageBtns[i]->setScale(1.0f);                // Tamano normal
+                    }
+                }
+            }
+
             m_desc->setString(ib::kStages[s].desc);
             std::string op = "Button opacity: " + std::to_string(ib::cfgOpacity()) + "%";
             m_opLabel->setString(op.c_str());
         }
 
-        // ----- callbacks -----
         void onStage(CCObject* sender) {
             ib::setStage(static_cast<CCNode*>(sender)->getTag());
             this->refresh();
@@ -277,12 +274,11 @@ namespace {
             this->removeFromParentAndCleanup(true);
         }
 
-        // ----- tactil / tecla atras de Android -----
         void registerWithTouchDispatcher() override {
             CCDirector::sharedDirector()->getTouchDispatcher()->addTargetedDelegate(this, -700, true);
         }
 
-        bool ccTouchBegan(CCTouch*, CCEvent*) override { return true; }   // bloquea lo de detras
+        bool ccTouchBegan(CCTouch*, CCEvent*) override { return true; }
 
         void keyBackClicked() override { this->onClose(nullptr); }
 
@@ -291,7 +287,8 @@ namespace {
         static constexpr float kH = 250.f;
         static constexpr float kStageY = 168.f;
 
-        static float stageX(int i) { return kW / 2.f + (i - 2) * 62.f; }
+        // AQUI ESTA LA MAGIA: Cambie el 62.f por 68.f para darles mas espacio
+        static float stageX(int i) { return kW / 2.f + (i - 2) * 68.f; }
 
         CCLabelBMFont* addLabel(const char* text, const char* font, float scale, CCPoint pos,
                                 CCPoint anchor = {0.5f, 0.5f}) {
@@ -313,12 +310,11 @@ namespace {
 
         CCNode* m_panel = nullptr;
         CCMenu* m_menu = nullptr;
-        CCLayerColor* m_sel = nullptr;
+        CCMenuItemSpriteExtra* m_stageBtns[5] = {nullptr};
         CCLabelBMFont* m_desc = nullptr;
         CCLabelBMFont* m_opLabel = nullptr;
     };
 
-    // crea el boton "IB" que se mete en los menus del juego
     CCMenuItemSpriteExtra* makeIBButton(CCObject* target, SEL_MenuHandler cb) {
         auto spr = ButtonSprite::create("IB", 36, true, "bigFont.fnt", "GJ_button_01.png", 30.f, 0.7f);
         auto btn = CCMenuItemSpriteExtra::create(spr, nullptr, target, cb);
@@ -328,9 +324,6 @@ namespace {
 
 }
 
-// ---------------------------------------------------------------------------
-//  API de interfaz usada por buffer.cpp
-// ---------------------------------------------------------------------------
 namespace ib {
 
     void onStageChanged() {
@@ -359,15 +352,10 @@ namespace ib {
 
 }
 
-// ---------------------------------------------------------------------------
-//  Puntos de entrada: menu principal y menu de pausa
-// ---------------------------------------------------------------------------
 class $modify(IBMenuLayer, MenuLayer) {
     bool init() {
         if (!MenuLayer::init()) return false;
-
         auto btn = makeIBButton(this, menu_selector(IBMenuLayer::onIB));
-
         CCMenu* menu = nullptr;
         if (auto node = this->getChildByID("bottom-menu")) {
             menu = typeinfo_cast<CCMenu*>(node);
@@ -385,18 +373,13 @@ class $modify(IBMenuLayer, MenuLayer) {
         }
         return true;
     }
-
-    void onIB(CCObject*) {
-        ib::openMenu();
-    }
+    void onIB(CCObject*) { ib::openMenu(); }
 };
 
 class $modify(IBPauseLayer, PauseLayer) {
     void customSetup() {
         PauseLayer::customSetup();
-
         auto btn = makeIBButton(this, menu_selector(IBPauseLayer::onIB));
-
         CCMenu* menu = nullptr;
         if (auto node = this->getChildByID("right-button-menu")) {
             menu = typeinfo_cast<CCMenu*>(node);
@@ -413,8 +396,5 @@ class $modify(IBPauseLayer, PauseLayer) {
             this->addChild(menu, 100);
         }
     }
-
-    void onIB(CCObject*) {
-        ib::openMenu();
-    }
+    void onIB(CCObject*) { ib::openMenu(); }
 };
